@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'dev.xetera.two_factor_automation'
+    namespace 'dev.xetera.sms'
     compileSdk 33
 
     defaultConfig {
-        applicationId "dev.xetera.two_factor_automation"
+        applicationId "dev.xetera.sms"
         minSdk 30
         targetSdk 33
         versionCode 1

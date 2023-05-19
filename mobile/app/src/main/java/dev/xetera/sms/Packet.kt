@@ -1,4 +1,4 @@
-package dev.xetera.two_factor_automation
+package dev.xetera.sms
 
 data class Packet(
     val cipherText: ByteArray,

@@ -1,4 +1,4 @@
-package dev.xetera.two_factor_automation.ui.theme
+package dev.xetera.sms.ui.theme
 
 import android.app.Activity
 import android.os.Build

@@ -1,4 +1,4 @@
-package dev.xetera.two_factor_automation
+package dev.xetera.sms
 
 import android.telephony.SmsMessage.MessageClass
 import androidx.test.ext.junit.runners.AndroidJUnit4

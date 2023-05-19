@@ -1,4 +1,4 @@
-package dev.xetera.two_factor_automation.ui.theme
+package dev.xetera.sms.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

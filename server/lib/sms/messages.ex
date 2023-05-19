@@ -12,12 +12,14 @@ defmodule Sms.Messages do
   def persist_sms(sms, routing_key) do
     key = "sms:#{routing_key}"
 
-    {:ok, _} =
+    {status, _} =
       Sms.Redis.pipeline([
         ["LPUSH", key, sms],
         ["LTRIM", key, 0, @max_sms_persistence - 1],
         ["EXPIRE", key, @one_month_in_seconds]
       ])
+
+    IO.inspect("Persisted sms as #{status} with routing key: #{routing_key}")
 
     :ok
   end

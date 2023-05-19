@@ -52,7 +52,7 @@ defmodule Sms.MixProject do
       {:plug_cowboy, "~> 2.5"},
       {:pbkdf2_elixir, "~> 2.1"},
       {:phoenix_pubsub_redis, "~> 3.0.1"},
-      {:redix, "~> 1.1"}
+      {:redix, "~> 1.2.3"}
     ]
   end
 

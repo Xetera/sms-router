@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "two_factor_automation"
+rootProject.name = "sms"
 include ':app'

@@ -9,21 +9,29 @@ export interface Sms {
   timestamp: number;
 }
 
+export interface SmsRouterOptions {
+  secret: string;
+  websocketUrl?: string;
+}
+
 export class SmsRouter {
   readonly #socket: Socket;
   readonly #channel: Channel;
-  readonly #decryptor = new SmsDecryptor();
+  readonly #decryptor = new SmsDecryptor(this.opts.secret);
+  static readonly DEFAULT_WEBSOCKET_URL =
+    "wss://sms-router.fly.dev/subscribe/websocket";
 
-  constructor(private readonly secretKey: string) {
-    const params = { routing_key: SmsDecryptor.hashedSecret(secretKey) };
+  constructor(private readonly opts: SmsRouterOptions) {
+    const params = { routing_key: this.#decryptor.hashedSecret() };
 
-    this.#socket = new Socket(
-      `ws://localhost:4000/subscribe/websocket?${qs.stringify(params)}`,
-      {
-        params,
-        transport: Websocket,
-      }
-    );
+    const url = `${
+      this.opts.websocketUrl ?? SmsRouter.DEFAULT_WEBSOCKET_URL
+    }?${qs.stringify(params)}`;
+
+    this.#socket = new Socket(url, {
+      params,
+      transport: Websocket,
+    });
     this.#channel = this.#socket.channel(`sms:${params.routing_key}`, {});
   }
 
@@ -62,7 +70,7 @@ export class SmsRouter {
     });
   }
 
-  listen(f: (sms: Sms, sentAt: Date) => void) {
+  listen<T = Sms>(f: (sms: T) => void) {
     this.#socket.connect();
     console.log("ran listen function");
     this.#channel
@@ -75,13 +83,16 @@ export class SmsRouter {
       });
     this.#channel.on("new", (data) => {
       console.log("encrypted sms", data);
+
       if (!data.sms) {
         console.warn("Got an empty sms message?");
+        return;
       }
+
       const val = Buffer.from(data.sms, "base64");
-      const sms = this.#decryptor.decrypt(val, this.secretKey);
-      console.log(sms);
-      f(JSON.parse(sms.message) as Sms, sms.timestamp);
+      const sms = this.#decryptor.decrypt(val);
+
+      f(JSON.parse(sms) as T);
     });
     return () => {
       this.#channel.leave();
@@ -92,9 +103,9 @@ export class SmsRouter {
 async function main() {
   const secretKey =
     "9d04971f8d17c915660179ad186b58db7feaa00ae51e3c35ff00163e0cc1393b";
-  const smsRouter = new SmsRouter(secretKey);
+  const smsRouter = new SmsRouter({ secret: secretKey });
 
-  const sms = await smsRouter.waitFor(/vehicle/, { timeout: 60 * 5000 });
+  const sms = await smsRouter.waitFor(/\ /, { timeout: 60 * 5000 });
 
   console.log(sms);
 

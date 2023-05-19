@@ -13,11 +13,13 @@ defmodule Sms.Application do
       # Start the Ecto repository
       # Sms.Repo,
       # Start the PubSub system
-      {Phoenix.PubSub,
-       adapter: Phoenix.PubSub.Redis,
-       url: System.get_env("REDIS_URL"),
-       name: Sms.PubSub,
-       node_name: "redis"},
+      {
+        Phoenix.PubSub,
+        adapter: Phoenix.PubSub.Redis,
+        url: System.get_env("REDIS_URL"),
+        name: Sms.PubSub,
+        node_name: "redis"
+      },
       Sms.Redis,
       # Start Finch
       {Finch, name: Sms.Finch},

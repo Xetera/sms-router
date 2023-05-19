@@ -3,10 +3,24 @@ defmodule Sms.Redis do
 
   def child_spec(_args) do
     # Specs for the Redix connections.
+    conn = URI.parse(System.get_env("REDIS_URL"))
+    [username, password] = IO.inspect(conn.userinfo |> String.split(":"))
+    IO.inspect(conn)
+
     children =
       for index <- 0..(@pool_size - 1) do
         Supervisor.child_spec(
-          {Redix, {System.get_env("REDIS_URL"), name: :"redix_#{index}"}},
+          {
+            Redix,
+            #  sync_connect: true,
+            username: username,
+            password: password,
+            host: conn.host,
+            port: 6379,
+            name: :"redix_#{index}",
+            socket_opts: [:inet6],
+            database: 0
+          },
           id: {Redix, index}
         )
       end

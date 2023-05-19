@@ -1,4 +1,4 @@
-package dev.xetera.two_factor_automation
+package dev.xetera.sms
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -14,13 +14,13 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
-import java.util.Base64
 
 
 class SmsReceiver : BroadcastReceiver() {
 
-    private val key = "9d04971f8d17c915660179ad186b58db7feaa00ae51e3c35ff00163e0cc1393b"
-    private val endpoint = "http://100.127.72.41:4000/api/v1/sms"
+    private val key = SmsKey("9d04971f8d17c915660179ad186b58db7feaa00ae51e3c35ff00163e0cc1393b")
+//    private val endpoint = "http://100.127.72.41:4000/api/v1/sms"
+    private val endpoint = "https://sms-router.fly.dev/api/v1/sms"
     private val octetStreamMime = "application/octet-stream".toMediaType()
 
     private val encryptor = Encryptor()
@@ -29,23 +29,14 @@ class SmsReceiver : BroadcastReceiver() {
 
     private val routingKey = encryptor.sha256(key)
 
-//    init {
-//        println("initializing receiver")
-//        fixedRateTimer("Test timer", false, 0L, 1000L) {
-//            println("Processing sms")
-//            processSms(
-//                IncomingSms(
-//                    sender = "Test Provider",
-//                    messageClass = SmsMessage.MessageClass.UNKNOWN,
-//                    body = "testing!",
-//                    date = Date().time
-//                )
-//            )
-//        }
-//    }
-
     fun processSms(sms: IncomingSms) =
         sendCiphertext(createPacket(sms))
+
+    private fun createPacket(message: IncomingSms): Packet {
+        val serializedMessages = gson.toJson(message)
+        val cipherText = encryptor.encryptSMS(key, serializedMessages)
+        return Packet(cipherText)
+    }
 
     override fun onReceive(context: Context, intent: Intent) {
         println("Received intent: ${intent.action}")
@@ -53,16 +44,9 @@ class SmsReceiver : BroadcastReceiver() {
             println("Received sms!")
             val smsMessages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
 
-            val message = fromSmsList(smsMessages)
+            val message = IncomingSms(smsMessages)
             processSms(message)
         }
-    }
-
-    private fun createPacket(message: IncomingSms): Packet {
-        val serializedMessages = gson.toJson(message)
-        println(serializedMessages)
-        val cipherText = encryptor.encryptSMS(key, serializedMessages, message.date)
-        return Packet(cipherText)
     }
 
     private fun sendCiphertext(packet: Packet) {

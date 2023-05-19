@@ -1,4 +1,4 @@
-package dev.xetera.two_factor_automation
+package dev.xetera.sms
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -16,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import dev.xetera.two_factor_automation.ui.theme.twoFactorAutomationTheme
+import dev.xetera.sms.ui.theme.twoFactorAutomationTheme
 
 
 class MainActivity : ComponentActivity() {

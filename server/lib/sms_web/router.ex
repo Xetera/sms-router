@@ -5,6 +5,10 @@ defmodule SmsWeb.Router do
     plug :accepts, ["json"]
   end
 
+  scope "/", SmsWeb do
+    get "/", PageController, :index
+  end
+
   scope "/api/v1", SmsWeb do
     pipe_through :api
     post("/sms/:id", SmsController, :create)

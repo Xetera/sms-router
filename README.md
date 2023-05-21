@@ -1,6 +1,8 @@
 # SMS Router
 
-A realtime end-to-end encrypted public API for forwarding SMS messages from your devices to any other app.
+A realtime end-to-end encrypted public API for forwarding SMS messages from your devices to any other app. Useful for adding 2FA support to your bots or building 3rd party SMS clients.
+
+![](./assets/cover.png)
 
 ## How it works
 
@@ -86,6 +88,8 @@ The encrypted message is a concatenation of the following fields:
 ```
 
 > The auth tag is always at the end due to the way AES-GCM works.
+
+There is a rate limit of 10 messages per 90 seconds for broadcasts.
 
 ## Custom Protocol
 

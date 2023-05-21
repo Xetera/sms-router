@@ -1,11 +1,18 @@
 defmodule Sms.Redis do
   @pool_size 3
 
-  defp spec(nil, _opts) do
+  def connection_opts(nil) do
     []
   end
 
-  defp spec(redis_url, socket_opts) do
+  def connection_opts(redis_url) do
+    socket_opts =
+      if Application.get_env(:sms, :env) == :prod do
+        [:inet6]
+      else
+        []
+      end
+
     conn = URI.parse(redis_url)
 
     [username, password] =
@@ -15,19 +22,30 @@ defmodule Sms.Redis do
         [nil, nil]
       end
 
+    [
+      socket_opts: socket_opts,
+      username: username,
+      password: password,
+      sync_connect: true,
+      host: conn.host,
+      backoff_max: 5_000,
+      database: 0
+    ]
+  end
+
+  defp spec(nil, _opts) do
+    []
+  end
+
+  defp spec(redis_url) do
     for index <- 0..(@pool_size - 1) do
       Supervisor.child_spec(
         {
           Redix,
-          # For some reason, redix has a ton of problems with disconnections
-          socket_opts: socket_opts,
-          username: username,
-          password: password,
-          sync_connect: true,
-          host: conn.host,
-          name: :"redix_#{index}",
-          backoff_max: 5_000,
-          database: 0
+          Keyword.merge(
+            connection_opts(redis_url),
+            name: :"redix_#{index}"
+          )
         },
         id: {Redix, index}
       )
@@ -38,15 +56,7 @@ defmodule Sms.Redis do
     # Specs for the Redix connections.
     redis_url = System.get_env("REDIS_URL")
 
-    children =
-      spec(
-        redis_url,
-        if Application.get_env(:sms, :env) == :prod do
-          [:inet6]
-        else
-          []
-        end
-      )
+    children = spec(redis_url)
 
     # Spec for the supervisor that will supervise the Redix connections.
     %{

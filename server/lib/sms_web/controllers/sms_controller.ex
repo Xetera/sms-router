@@ -2,6 +2,14 @@ defmodule SmsWeb.SmsController do
   use SmsWeb, :controller
   import Sms.Messages
 
+  plug Hammer.Plug,
+       [
+         # 10 messages every 90 seconds
+         rate_limit: {"sms:broadcast", 90_000, 10},
+         by: :ip
+       ]
+       when action == :create
+
   action_fallback(SmsWeb.FallbackController)
 
   def list(conn, params) do

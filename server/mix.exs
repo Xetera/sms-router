@@ -43,7 +43,10 @@ defmodule Sms.MixProject do
       {:plug_cowboy, "~> 2.5"},
       {:phoenix_pubsub_redis, "~> 3.0.1"},
       {:prom_ex, "~> 1.8.0"},
-      {:redix, "~> 1.2.3"}
+      {:redix, "~> 1.2.3"},
+      {:hammer, "~> 6.0"},
+      {:hammer_plug, "~> 3.0"},
+      {:hammer_backend_redis, "~> 6.1"}
     ]
   end
 

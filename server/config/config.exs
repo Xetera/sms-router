@@ -23,6 +23,16 @@ config :sms, SmsWeb.Endpoint,
   server: true
 
 config :sms, Sms.PromEx, manual_metrics_start_delay: :no_delay
+
+config :hammer,
+  backend:
+    {Hammer.Backend.Redis,
+     [
+       delete_buckets_timeout: 10_0000,
+       expiry_ms: 60_000 * 60 * 2,
+       redis_url: System.get_env("REDIS_URL")
+     ]}
+
 # grafana: [
 #   host: System.get_env("GRAFANA_HOST") || raise("GRAFANA_HOST is required"),
 #   auth_token: System.get_env("GRAFANA_TOKEN") || raise("GRAFANA_TOKEN is required"),

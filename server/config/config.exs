@@ -7,15 +7,10 @@
 # General application configuration
 import Config
 
-dispatch = [
-  _: [
-    {"/listen", SmsWeb.MessageSocket, []},
-    {:_, Phoenix.Endpoint.Cowboy2Handler, {SmsWeb.Endpoint, []}}
-  ]
-]
-
 config :sms,
-  ecto_repos: [Sms.Repo]
+  env: config_env()
+
+# ecto_repos: [Sms.Repo]
 
 # Configures the endpoint
 config :sms, SmsWeb.Endpoint,
@@ -25,11 +20,16 @@ config :sms, SmsWeb.Endpoint,
     layout: false
   ],
   pubsub_server: Sms.PubSub,
-  live_view: [signing_salt: "AqaPwcd0"]
+  server: true
 
-# http: [dispatch: dispatch]
-
-# https: [dispatch: dispatch]
+config :sms, Sms.PromEx, manual_metrics_start_delay: :no_delay
+# grafana: [
+#   host: System.get_env("GRAFANA_HOST") || raise("GRAFANA_HOST is required"),
+#   auth_token: System.get_env("GRAFANA_TOKEN") || raise("GRAFANA_TOKEN is required"),
+#   upload_dashboards_on_start: true,
+#   folder_name: "SMS Dashboards",
+#   annotate_app_lifecycle: true
+# ]
 
 # Configures the mailer
 #
@@ -38,7 +38,7 @@ config :sms, SmsWeb.Endpoint,
 #
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
-config :sms, Sms.Mailer, adapter: Swoosh.Adapters.Local
+# config :sms, Sms.Mailer, adapter: Swoosh.Adapters.Local
 
 # Configure esbuild (the version is required)
 config :esbuild,

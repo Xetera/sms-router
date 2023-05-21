@@ -8,18 +8,11 @@ defmodule Sms.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      Sms.PromEx,
       # Start the Telemetry supervisor
       SmsWeb.Telemetry,
-      # Start the Ecto repository
-      # Sms.Repo,
       # Start the PubSub system
-      {
-        Phoenix.PubSub,
-        adapter: Phoenix.PubSub.Redis,
-        url: System.get_env("REDIS_URL"),
-        name: Sms.PubSub,
-        node_name: "redis"
-      },
+      {Phoenix.PubSub, [name: Sms.PubSub, adapter: Phoenix.PubSub.PG2]},
       Sms.Redis,
       # Start Finch
       {Finch, name: Sms.Finch},

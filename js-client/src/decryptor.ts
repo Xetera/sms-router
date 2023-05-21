@@ -1,9 +1,17 @@
 import crypto from "node:crypto";
+import { z } from "zod";
 
 export interface TimestampedMessage {
   timestamp: Date;
   message: string;
 }
+
+export const Base64Ciphertext = z
+  .string()
+  .transform((text) => new Uint8Array(Buffer.from(text, "base64")))
+  .brand("ciphertext");
+
+export type Base64Ciphertext = z.infer<typeof Base64Ciphertext>;
 
 export class SmsDecryptor {
   private readonly IV_BYTE_SIZE = 12;
@@ -23,13 +31,13 @@ export class SmsDecryptor {
     return crypto.createHash("sha256").update(this.secret).digest("hex");
   }
 
-  decrypt(encryptedData: Uint8Array): string {
+  decryptCiphertext(ciphertext: Base64Ciphertext): string {
     const encryptedDataOffset = this.IV_BYTE_SIZE;
-    const iv = encryptedData.slice(0, encryptedDataOffset);
+    const iv = ciphertext.slice(0, encryptedDataOffset);
 
     // bouncycastle appends an auth tag at the end of encrypted data
-    const tag = encryptedData.slice(-this.TAG_BYTE_SIZE);
-    const encryptedMessage = encryptedData.slice(
+    const tag = ciphertext.slice(-this.TAG_BYTE_SIZE);
+    const encryptedMessage = ciphertext.slice(
       encryptedDataOffset,
       -this.TAG_BYTE_SIZE
     );
@@ -46,11 +54,5 @@ export class SmsDecryptor {
     ]);
 
     return decryptedMessage.toString();
-  }
-
-  private extractTimestamp(encodedDate: Uint8Array): Date {
-    const dataView = Buffer.from(encodedDate);
-    const timestamp = dataView.readBigInt64BE(0);
-    return new Date(Number(timestamp) * 1000);
   }
 }

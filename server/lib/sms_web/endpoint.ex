@@ -6,16 +6,16 @@ defmodule SmsWeb.Endpoint do
   # Set :encryption_salt if you would also like to encrypt it.
   @session_options [
     store: :cookie,
-    key: "_two_factor_automation_key",
+    key: "_sms_key",
     signing_salt: "bnBjtO7m",
     same_site: "Lax"
   ]
 
-  socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
+  # socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
 
   socket("/subscribe", SmsWeb.MessageSocket,
     websocket: true,
-    longpoll: false
+    longpoll: true
   )
 
   # Serve at "/" the static files from "priv/static" directory.
@@ -32,16 +32,18 @@ defmodule SmsWeb.Endpoint do
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
   if code_reloading? do
-    socket("/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket)
-    plug(Phoenix.LiveReloader)
+    # socket("/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket)
+    # plug(Phoenix.LiveReloader)
     plug(Phoenix.CodeReloader)
-    plug(Phoenix.Ecto.CheckRepoStatus, otp_app: :sms)
+    # plug(Phoenix.Ecto.CheckRepoStatus, otp_app: :sms)
   end
 
   plug(Phoenix.LiveDashboard.RequestLogger,
     param_key: "request_logger",
     cookie_key: "request_logger"
   )
+
+  plug PromEx.Plug, prom_ex_module: Sms.PromEx
 
   plug(Plug.RequestId)
   plug(Plug.Telemetry, event_prefix: [:phoenix, :endpoint])

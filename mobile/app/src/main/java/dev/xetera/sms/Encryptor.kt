@@ -6,11 +6,9 @@ import java.nio.ByteBuffer
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.security.Security
-import java.security.spec.KeySpec
 import javax.crypto.Cipher
-import javax.crypto.SecretKeyFactory
+import javax.crypto.Mac
 import javax.crypto.spec.GCMParameterSpec
-import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
 
 class Encryptor {
@@ -18,14 +16,18 @@ class Encryptor {
         Security.addProvider(BouncyCastleProvider())
     }
 
-    fun sha256(secret: SmsKey): String {
-        return this.sha256(secret.toString())
+    fun sha256(secret: SmsKey): ByteArray {
+        return this.sha256(secret.toByteArray())
     }
 
-    fun sha256(secret: String): String {
+    fun sha256(secret: ByteArray): ByteArray {
         val digest = MessageDigest.getInstance("SHA256")
-        val hashedBytes = digest.digest(secret.toByteArray(Charsets.UTF_8))
-        return bytesToHex(hashedBytes)
+        val hashedBytes = digest.digest(secret)
+        return hashedBytes
+    }
+
+    fun idempotencyKey(routingKey: ByteArray, digest: ByteArray): String {
+        return bytesToHex(sha256(routingKey + digest))
     }
 
     fun encryptSMS(secret: SmsKey, message: String): ByteArray {
@@ -42,7 +44,7 @@ class Encryptor {
 //        val keySpec: KeySpec = PBEKeySpec(secret.toCharArray(), salt, 65536, 256)
 //        val secretKey = keyFactory.generateSecret(keySpec)
 //        println(Hex.encode(secretKey.encoded).toString())
-        val aesKey = SecretKeySpec(secret.key, "AES")
+        val aesKey = SecretKeySpec(secret.toByteArray(), "AES")
 
         // Encrypt the message with AES-256-GCM
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
@@ -73,7 +75,7 @@ class Encryptor {
 //        val keySpec: KeySpec = PBEKeySpec(secret.toCharArray(), salt, 65536, 256)
 //        val secretKey = keyFactory.generateSecret(keySpec)
 //        println(secretKey.encoded)
-        val aesKey = SecretKeySpec(secret.key, "AES")
+        val aesKey = SecretKeySpec(secret.toByteArray(), "AES")
 
         // Decrypt the message with AES-256-GCM
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
@@ -85,7 +87,7 @@ class Encryptor {
         return String(decryptedMessage)
     }
 
-    private fun bytesToHex(bytes: ByteArray): String {
+    fun bytesToHex(bytes: ByteArray): String {
         val result = StringBuffer()
         for (byt in bytes) result.append(
             ((byt.toInt() and 0xff) + 0x100).toString(16).substring(1)

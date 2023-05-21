@@ -6,20 +6,18 @@ import android.content.Intent
 import android.provider.Telephony
 import android.util.Log
 import com.google.gson.Gson
-import okhttp3.Call
-import okhttp3.Callback
+import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
 import java.io.IOException
+import java.util.Base64
+import java.util.UUID
 
 
 class SmsReceiver : BroadcastReceiver() {
-
     private val key = SmsKey("9d04971f8d17c915660179ad186b58db7feaa00ae51e3c35ff00163e0cc1393b")
-//    private val endpoint = "http://100.127.72.41:4000/api/v1/sms"
+
+    //    private val endpoint = "http://100.127.72.41:4000/api/v1/sms"
     private val endpoint = "https://sms-router.fly.dev/api/v1/sms"
     private val octetStreamMime = "application/octet-stream".toMediaType()
 
@@ -28,6 +26,7 @@ class SmsReceiver : BroadcastReceiver() {
     private val gson = Gson()
 
     private val routingKey = encryptor.sha256(key)
+    private val routingKeyHex = encryptor.bytesToHex(routingKey)
 
     fun processSms(sms: IncomingSms) =
         sendCiphertext(createPacket(sms))
@@ -50,11 +49,17 @@ class SmsReceiver : BroadcastReceiver() {
     }
 
     private fun sendCiphertext(packet: Packet) {
+        // TODO: Reuse this for requests that are retried
+        val idempotencyKey = UUID.randomUUID()
+        val out = Base64.getEncoder().encodeToString(packet.cipherText)
+        println(out)
+
         val response = Request.Builder()
             .post(packet.cipherText.toRequestBody(octetStreamMime))
             .header("Content-Type", "application/octet-stream")
             .header("User-Agent", "SmsRouter (Android)")
-            .url("$endpoint/$routingKey")
+            .header("X-Idempotency-Key", idempotencyKey.toString())
+            .url("$endpoint/$routingKeyHex")
             .build()
 
         httpClient.newCall(response).enqueue(object : Callback {

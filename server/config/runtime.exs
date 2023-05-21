@@ -21,9 +21,9 @@ if System.get_env("PHX_SERVER") do
 end
 
 if config_env() == :prod do
-  database_url = System.get_env("DATABASE_URL") || "ecto://USER:PASS@HOST/DATABASE"
+  # database_url = System.get_env("DATABASE_URL") || "ecto://USER:PASS@HOST/DATABASE"
 
-  maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
+  # maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
   # config :sms, Sms.Repo,
   #   # ssl: true,

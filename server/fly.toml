@@ -1,4 +1,4 @@
-# fly.toml app configuration file generated for sms-router on 2023-05-14T08:18:55+03:00
+# fly.toml app configuration file generated for sms-router on 2023-05-21T21:40:34+03:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
@@ -7,15 +7,12 @@ app = "sms-router"
 primary_region = "ams"
 kill_signal = "SIGTERM"
 
-# [deploy]
-#   release_command = "/app/bin/migrate"
-
 [env]
-  PHX_HOST = "sms-router.fly.dev"
-  PORT = "8080"
+  PHX_HOST = "sms.xetera.dev"
+  PORT = "4000"
 
 [http_service]
-  internal_port = 8080
+  internal_port = 4000
   force_https = true
   auto_stop_machines = true
   auto_start_machines = true
@@ -24,11 +21,7 @@ kill_signal = "SIGTERM"
     type = "connections"
     hard_limit = 1000
     soft_limit = 1000
-  [[services.ports]]
-    force_https = true
-    handlers = ["http"]
-    port = 80
 
-  [[services.ports]]
-    handlers = ["tls", "http"]
-    port = 443
+[metrics]
+port = 4000
+path = "/metrics"

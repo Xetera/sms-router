@@ -1,18 +1,24 @@
+import "@total-typescript/ts-reset";
 import Websocket from "isomorphic-ws";
 import qs from "node:querystring";
 import { Socket, Channel } from "phoenix";
-import { SmsDecryptor } from "./decryptor";
+import { Base64Ciphertext, SmsDecryptor } from "./decryptor";
+import { z } from "zod";
 
 export interface Sms {
   body: string;
-  from: string;
-  timestamp: number;
+  sender: string;
+  date: number;
+  messageClass: string;
 }
 
 export interface SmsRouterOptions {
   secret: string;
   websocketUrl?: string;
+  onError?: (err: Error) => void;
 }
+
+const smsList = z.array(Base64Ciphertext);
 
 export class SmsRouter {
   readonly #socket: Socket;
@@ -20,9 +26,11 @@ export class SmsRouter {
   readonly #decryptor = new SmsDecryptor(this.opts.secret);
   static readonly DEFAULT_WEBSOCKET_URL =
     "wss://sms-router.fly.dev/subscribe/websocket";
+  // "ws://localhost:4000/subscribe/websocket";
 
   constructor(private readonly opts: SmsRouterOptions) {
     const params = { routing_key: this.#decryptor.hashedSecret() };
+    console.log(params);
 
     const url = `${
       this.opts.websocketUrl ?? SmsRouter.DEFAULT_WEBSOCKET_URL
@@ -33,6 +41,23 @@ export class SmsRouter {
       transport: Websocket,
     });
     this.#channel = this.#socket.channel(`sms:${params.routing_key}`, {});
+  }
+
+  async list<T = Sms>(): Promise<T[]> {
+    const res = await fetch(
+      `https://sms-router.fly.dev/api/v1/sms/${this.#decryptor.hashedSecret()}`
+    );
+    const data = smsList.parse(await res.json());
+    return data
+      .map((data) => {
+        try {
+          return JSON.parse(this.#decryptor.decryptCiphertext(data)) as T;
+        } catch (err) {
+          console.error(err);
+          return;
+        }
+      })
+      .filter(Boolean);
   }
 
   waitFor(pattern: RegExp, opts?: { timeout: number }): Promise<Sms> {
@@ -73,6 +98,7 @@ export class SmsRouter {
   listen<T = Sms>(f: (sms: T) => void) {
     this.#socket.connect();
     console.log("ran listen function");
+
     this.#channel
       .join(1000)
       .receive("ok", (res) => {
@@ -81,20 +107,30 @@ export class SmsRouter {
       .receive("error", (err) => {
         console.log("error", err);
       });
+
     this.#channel.on("new", (data) => {
       console.log("encrypted sms", data);
 
-      if (!data.sms) {
+      if (!data.ciphertext) {
         console.warn("Got an empty sms message?");
         return;
       }
 
-      const val = Buffer.from(data.sms, "base64");
-      const sms = this.#decryptor.decrypt(val);
+      try {
+        const val = Base64Ciphertext.parse(data.ciphertext);
+        const sms = this.#decryptor.decryptCiphertext(val);
 
-      f(JSON.parse(sms) as T);
+        f(JSON.parse(sms) as T);
+      } catch (err) {
+        if (this.opts.onError) {
+          this.opts.onError(err);
+        } else {
+          throw err;
+        }
+      }
     });
     return () => {
+      console.log("leaving channel...");
       this.#channel.leave();
     };
   }
@@ -105,9 +141,12 @@ async function main() {
     "9d04971f8d17c915660179ad186b58db7feaa00ae51e3c35ff00163e0cc1393b";
   const smsRouter = new SmsRouter({ secret: secretKey });
 
-  const sms = await smsRouter.waitFor(/\ /, { timeout: 60 * 5000 });
+  // smsRouter.listen((sms) => {
+  //   console.log(sms);
+  // });
+  // const sms = await smsRouter.waitFor(/\ /, { timeout: 60 * 5000 });
 
-  console.log(sms);
+  console.log(await smsRouter.list());
 
   // const code2fa = sms.body.match(/sifreniz: (\d+)/)?.[0];
 }

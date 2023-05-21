@@ -18,19 +18,14 @@ public class EncryptorTest {
     }
 
     @Test
-    fun knownEncryption_canDecrypt() {
-        val encryptor = Encryptor()
-        val encoded =
-            "/Fq28AeaqYFvRudmLA0ZBFBQKbINPyYwLuc3dy8ZxqSJCVqHRnbbiU+DlmwHAzXC6Ode8e9wEWbxPxi1tGdRz/0KzNL3HHLi14j6OnDcKRzDAQ1XU6aL6y9ul/89gAOm16nHqlPqmumNDsw74ZMZC1meVtmTB/NIaxMSnBuwUQM/+N03QYsuTRi+O5DggG0EAu4z/ZT95OL3IYkTFoLTcXy60V4Y10dMi3Zd00ZVrfDy7qw/26Br/5gJwLOt1UM="
-        println(encryptor.decryptSms(
-            key,
-            Base64.getDecoder().decode(encoded)
-        ))
-    }
-
-    @Test
-    fun sha256_works() {
-        val encryptor = Encryptor()
-        assert(encryptor.sha256("abcd") == "88d4266fd4e6338d13b845fcf289579d209c897823b9217da3e161936f031589")
+    fun keyHash() {
+        val encrytor = Encryptor()
+        val key = "9d04971f8d17c915660179ad186b58db7feaa00ae51e3c35ff00163e0cc1393b"
+        val out = encrytor.sha256(
+            SmsKey(key)
+        )
+        print(out)
+        val result = "4afeb4aff0b13a7d94cfffdd4cd3f94f1c826b2d4f24e56384d81ff73b11fc0b"
+        assert(out == result)
     }
 }

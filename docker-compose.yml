@@ -1,8 +1,8 @@
-version: '3.8'
+version: "3.8"
 
 services:
   cache:
     image: redis:6.2-alpine
     restart: on-failure
     ports:
-      - '6379:6379'
+      - "6379:6379"

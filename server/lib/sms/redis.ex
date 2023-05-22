@@ -1,5 +1,5 @@
 defmodule Sms.Redis do
-  @pool_size 3
+  @pool_size 2
 
   def connection_opts(nil) do
     []
@@ -57,6 +57,19 @@ defmodule Sms.Redis do
     redis_url = System.get_env("REDIS_URL")
 
     children = spec(redis_url)
+
+    events = [
+      [:redix, :disconnection],
+      [:redix, :failed_connection],
+      [:redix, :connection]
+    ]
+
+    :telemetry.attach_many(
+      "my-redix-log-handler",
+      events,
+      &Sms.RedixTelemetryHandler.handle_event/4,
+      []
+    )
 
     # Spec for the supervisor that will supervise the Redix connections.
     %{

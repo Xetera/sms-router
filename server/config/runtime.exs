@@ -20,6 +20,24 @@ if System.get_env("PHX_SERVER") do
   config :sms, SmsWeb.Endpoint, server: true
 end
 
+IO.puts("Running runtime configuration")
+IO.inspect(System.get_env("REDIS_URL"), label: "REDIS_URL")
+
+config :redix_pool,
+  redis_url: System.get_env("REDIS_URL"),
+  # System.get_env("POOL_SIZE") will be executed at runtime
+  pool_size: {:system, "POOL_SIZE"},
+  pool_max_overflow: 1
+
+config :hammer,
+  backend:
+    {Hammer.Backend.Redis,
+     [
+       delete_buckets_timeout: 10_0000,
+       expiry_ms: 60_000 * 60 * 2,
+       redis_url: System.get_env("REDIS_URL")
+     ]}
+
 if config_env() == :prod do
   # database_url = System.get_env("DATABASE_URL") || "ecto://USER:PASS@HOST/DATABASE"
 

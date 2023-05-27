@@ -12,7 +12,7 @@ defmodule Sms.Messages do
     key = broadcast_key(routing_key)
 
     {status, _} =
-      Sms.Redis.transaction_pipeline([
+      Sms.Redis.pipeline([
         ["LPUSH", key, sms],
         ["LTRIM", key, 0, @max_sms_persistence - 1],
         ["EXPIRE", key, @one_month_in_seconds]

@@ -44,6 +44,7 @@ defmodule Sms.MixProject do
       {:phoenix_pubsub_redis, "~> 3.0.1"},
       {:prom_ex, "~> 1.8.0"},
       {:redix, "~> 1.2.3"},
+      {:redix_pool, git: "https://github.com/finder-co/redix_pool.git"},
       {:hammer, "~> 6.0"},
       {:hammer_plug, "~> 3.0"},
       {:hammer_backend_redis, "~> 6.1"}

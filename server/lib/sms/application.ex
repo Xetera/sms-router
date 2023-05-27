@@ -13,7 +13,7 @@ defmodule Sms.Application do
       SmsWeb.Telemetry,
       # Start the PubSub system
       {Phoenix.PubSub, [name: Sms.PubSub, adapter: Phoenix.PubSub.PG2]},
-      Sms.Redis,
+      # Sms.Redis,
       # Start Finch
       {Finch, name: Sms.Finch},
       # Start the Endpoint (http/https)

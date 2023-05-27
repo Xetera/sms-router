@@ -1,97 +1,96 @@
 defmodule Sms.Redis do
-  @pool_size 2
+  alias RedixPool, as: Redis
 
-  def connection_opts(nil) do
-    []
-  end
+  @pool_size 1
 
-  def connection_opts(redis_url) do
-    socket_opts =
-      if Application.get_env(:sms, :env) == :prod do
-        [:inet6]
-      else
-        []
-      end
+  # def connection_opts(nil) do
+  #   IO.puts("REDIS_URL is not set!!")
+  #   []
+  # end
 
-    conn = URI.parse(redis_url)
+  # def connection_opts(redis_url) do
+  #   socket_opts = []
 
-    [username, password] =
-      if conn.userinfo do
-        String.split(conn.userinfo, ":")
-      else
-        [nil, nil]
-      end
+  #   conn = URI.parse(redis_url)
 
-    [
-      socket_opts: socket_opts,
-      username: username,
-      password: password,
-      sync_connect: true,
-      host: conn.host,
-      backoff_max: 5_000,
-      database: 0
-    ]
-  end
+  #   IO.inspect(conn.host)
 
-  defp spec(nil, _opts) do
-    []
-  end
+  #   [username, password] =
+  #     if conn.userinfo do
+  #       String.split(conn.userinfo, ":")
+  #     else
+  #       [nil, nil]
+  #     end
 
-  defp spec(redis_url) do
-    for index <- 0..(@pool_size - 1) do
-      Supervisor.child_spec(
-        {
-          Redix,
-          Keyword.merge(
-            connection_opts(redis_url),
-            name: :"redix_#{index}"
-          )
-        },
-        id: {Redix, index}
-      )
-    end
-  end
+  #   [
+  #     socket_opts: socket_opts,
+  #     # username: username,
+  #     # password: password,
+  #     sync_connect: true,
+  #     # host: conn.host,
+  #     backoff_max: 5_000,
+  #     database: 0
+  #   ]
+  # end
 
-  def child_spec(_args) do
-    # Specs for the Redix connections.
-    redis_url = System.get_env("REDIS_URL")
+  # defp spec(nil) do
+  #   []
+  # end
 
-    children = spec(redis_url)
+  # defp spec(redis_url) do
+  #   events = [
+  #     [:redix, :disconnection],
+  #     [:redix, :failed_connection],
+  #     [:redix, :connection]
+  #   ]
 
-    events = [
-      [:redix, :disconnection],
-      [:redix, :failed_connection],
-      [:redix, :connection]
-    ]
+  #   :telemetry.attach_many(
+  #     "redis_telemetry",
+  #     events,
+  #     &Sms.RedixTelemetryHandler.handle_event/4,
+  #     []
+  #   )
 
-    :telemetry.attach_many(
-      "my-redix-log-handler",
-      events,
-      &Sms.RedixTelemetryHandler.handle_event/4,
-      []
-    )
+  #   for index <- 0..(@pool_size - 1) do
+  #     Supervisor.child_spec(
+  #       {
+  #         Redix,
+  #         {System.get_env("REDIS_URL"),
+  #          Keyword.merge(
+  #            connection_opts(redis_url),
+  #            name: :"redix_#{index}"
+  #          )}
+  #       },
+  #       id: {Redix, index}
+  #     )
+  #   end
+  # end
 
-    # Spec for the supervisor that will supervise the Redix connections.
-    %{
-      id: RedixSupervisor,
-      type: :supervisor,
-      start: {Supervisor, :start_link, [children, [strategy: :one_for_one]]}
-    }
-  end
+  # def child_spec(_args) do
+  #   # Specs for the Redix connections.
+  #   redis_url = System.get_env("REDIS_URL")
+
+  #   IO.puts(redis_url)
+
+  #   children = spec(redis_url)
+
+  #   # Spec for the supervisor that will supervise the Redix connections.
+  #   %{
+  #     id: RedixSupervisor,
+  #     type: :supervisor,
+  #     start: {Supervisor, :start_link, [children, [strategy: :one_for_one]]}
+  #   }
+  # end
 
   def pipeline(commands) do
-    Redix.pipeline(:"redix_#{random_index()}", commands)
+    Redis.pipeline(commands)
   end
 
   def transaction_pipeline(commands) do
-    Redix.transaction_pipeline(:"redix_#{random_index()}", commands)
+    Redis.pipeline(commands)
   end
 
   def command(command) do
-    Redix.command(:"redix_#{random_index()}", command)
-  end
-
-  defp random_index() do
-    Enum.random(0..(@pool_size - 1))
+    Redis.command(command)
   end
 end

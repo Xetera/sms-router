@@ -2,13 +2,13 @@ defmodule SmsWeb.SmsController do
   use SmsWeb, :controller
   import Sms.Messages
 
-  plug Hammer.Plug,
-       [
-         # 10 messages every 90 seconds
-         rate_limit: {"sms:broadcast", 90_000, 10},
-         by: :ip
-       ]
-       when action == :create
+  # plug Hammer.Plug,
+  #      [
+  #        # 10 messages every 90 seconds
+  #        rate_limit: {"sms:broadcast", 90_000, 10},
+  #        by: :ip
+  #      ]
+  #      when action == :create
 
   action_fallback(SmsWeb.FallbackController)
 
@@ -16,7 +16,10 @@ defmodule SmsWeb.SmsController do
     routing_key = params["id"]
 
     {:ok, list} = Sms.Messages.list_sms(routing_key)
-    serialized = Enum.map(list, fn bytes -> Base.encode64(bytes) end)
+
+    serialized =
+      Enum.map(list, fn bytes -> Base.encode64(bytes) end)
+      |> Enum.reverse()
 
     resp(conn, 200, Jason.encode!(serialized))
     |> put_resp_header("content-type", "application/json")

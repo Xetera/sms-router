@@ -1,0 +1,28 @@
+{
+  "name": "sms-notify",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "tsx src/index.ts",
+    "build": "tsc"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/lodash": "^4.14.195",
+    "@types/node": "^20.2.5",
+    "@types/node-notifier": "^8.0.2",
+    "tsx": "^3.12.7",
+    "typescript": "^5.0.4"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21",
+    "node-notifier": "^10.0.1",
+    "sms-router": "^1.1.6",
+    "zod": "^3.21.4"
+  }
+}

@@ -1,5 +1,3 @@
-#!/bin/sh
-
 import cp from "node:child_process";
 import { inspect } from "node:util";
 import { SmsRouter } from "sms-router";

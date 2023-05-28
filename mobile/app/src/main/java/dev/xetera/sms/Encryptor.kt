@@ -1,26 +1,76 @@
 package dev.xetera.sms
 
+import android.content.Context
+import android.content.Context.MODE_PRIVATE
+import android.content.SharedPreferences
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import org.bouncycastle.jce.provider.BouncyCastleProvider
-import org.bouncycastle.util.encoders.Hex
 import java.nio.ByteBuffer
+import java.security.KeyStore
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.security.Security
+import java.util.Base64
 import javax.crypto.Cipher
-import javax.crypto.Mac
+import javax.crypto.KeyGenerator
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
+
+//import androidx.datastore.preferences
+
+
 class Encryptor {
+    private val KEY_LENGTH = 32
+
+    private val ANDROID_KEY_STORE = "AndroidKeyStore"
+
+//    private val keyGenerator =
+//        KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEY_STORE)
+//
+//    private val keyGenParameterSpec = KeyGenParameterSpec.Builder(
+//        "sms-router-key", KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+//    ).setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+//        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).setKeySize(256).build()
+//
     init {
         Security.addProvider(BouncyCastleProvider())
+//        KeyStore.getInstance(ANDROID_KEY_STORE).load(null)
+//        keyGenerator.init(keyGenParameterSpec)
+    }
+
+    fun hexToBytes(hex: String): ByteArray {
+        val len = hex.length
+        val data = ByteArray(len / 2)
+        var i = 0
+        while (i < len) {
+            data[i / 2] =
+                ((Character.digit(hex[i], 16) shl 4) + Character.digit(hex[i + 1], 16)).toByte()
+            i += 2
+        }
+        return data
+    }
+
+    fun generateKey(): ByteArray {
+        return hexToBytes("9d04971f8d17c915660179ad186b58db7feaa00ae51e3c35ff00163e0cc1393b")
+
+        val random = SecureRandom()
+        val key = ByteArray(KEY_LENGTH)
+        random.nextBytes(key)
+        return key
     }
 
     fun sha256(secret: SmsKey): ByteArray {
         return this.sha256(secret.toByteArray())
     }
 
-    fun sha256(secret: ByteArray): ByteArray {
+    private fun sha256(secret: ByteArray): ByteArray {
         val digest = MessageDigest.getInstance("SHA256")
         val hashedBytes = digest.digest(secret)
         return hashedBytes
@@ -35,8 +85,6 @@ class Encryptor {
         // Generate a random salt and initialization vector (IV)
         val secureRandom = SecureRandom()
 //        val salt = ByteArray(16).apply { secureRandom.nextBytes(this) }
-        val iv = ByteArray(12).apply { secureRandom.nextBytes(this) }
-        println(Hex.encode(iv).toString())
 
 
         // Key derivation function (PBKDF2WithHmacSHA256)
@@ -48,8 +96,10 @@ class Encryptor {
 
         // Encrypt the message with AES-256-GCM
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        val gcmSpec = GCMParameterSpec(128, iv)
-        cipher.init(Cipher.ENCRYPT_MODE, aesKey, gcmSpec)
+        cipher.init(Cipher.ENCRYPT_MODE, aesKey)
+        val iv = cipher.iv
+//        val gcmSpec = GCMParameterSpec(128, iv)
+
 
         val encryptedMessage = cipher.doFinal(message.toByteArray())
 

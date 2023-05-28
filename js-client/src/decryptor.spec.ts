@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Base64Ciphertext, SmsDecryptor } from "./decryptor";
+import { Base64Ciphertext, SmsDecryptor } from "./decryptor.js";
 
 describe("decryptor", () => {
   const decryptor = new SmsDecryptor(

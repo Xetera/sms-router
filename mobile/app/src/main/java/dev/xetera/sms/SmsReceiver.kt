@@ -6,6 +6,7 @@ import android.content.Intent
 import android.provider.Telephony
 import android.util.Log
 import com.google.gson.Gson
+import kotlinx.coroutines.runBlocking
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -13,25 +14,29 @@ import java.io.IOException
 import java.util.Base64
 import java.util.UUID
 
-
 class SmsReceiver : BroadcastReceiver() {
-    private val key = SmsKey("9d04971f8d17c915660179ad186b58db7feaa00ae51e3c35ff00163e0cc1393b")
+//    private val encryptor = Encryptor()
+//    private val key = SmsKey("9d04971f8d17c915660179ad186b58db7feaa00ae51e3c35ff00163e0cc1393b")
+//    private val key = SmsKey(encryptor.generateKey())
 
     //    private val endpoint = "http://100.127.72.41:4000/api/v1/sms"
-    private val endpoint = "https://sms-router.fly.dev/api/v1/sms"
+    private val endpoint = "https://sms.xetera.dev/api/v1/sms"
     private val octetStreamMime = "application/octet-stream".toMediaType()
 
-    private val encryptor = Encryptor()
     private val httpClient = OkHttpClient()
     private val gson = Gson()
 
-    private val routingKey = encryptor.sha256(key)
-    private val routingKeyHex = encryptor.bytesToHex(routingKey)
+    suspend fun processSms(sms: IncomingSms, encryptor: Encryptor, key: SmsKey) {
+        val packet = createPacket(sms, encryptor, key)
 
-    fun processSms(sms: IncomingSms) =
-        sendCiphertext(createPacket(sms))
+        sendCiphertext(packet, encryptor, key)
+    }
 
-    private fun createPacket(message: IncomingSms): Packet {
+    private suspend fun createPacket(
+        message: IncomingSms,
+        encryptor: Encryptor,
+        key: SmsKey
+    ): Packet {
         val serializedMessages = gson.toJson(message)
         val cipherText = encryptor.encryptSMS(key, serializedMessages)
         return Packet(cipherText)
@@ -44,11 +49,17 @@ class SmsReceiver : BroadcastReceiver() {
             val smsMessages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
 
             val message = IncomingSms(smsMessages)
-            processSms(message)
+            val encryptor = Encryptor()
+            runBlocking {
+                val key = SmsKey.getFromStoreOrDefault(context, encryptor)
+                processSms(message, encryptor, key)
+            }
         }
     }
 
-    private fun sendCiphertext(packet: Packet) {
+    private fun sendCiphertext(packet: Packet, encryptor: Encryptor, key: SmsKey) {
+        val routingKey = encryptor.sha256(key)
+        val routingKeyHex = encryptor.bytesToHex(routingKey)
         // TODO: Reuse this for requests that are retried
         val idempotencyKey = UUID.randomUUID()
         val out = Base64.getEncoder().encodeToString(packet.cipherText)
@@ -64,7 +75,7 @@ class SmsReceiver : BroadcastReceiver() {
 
         httpClient.newCall(response).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                Log.e("error", "Something went wrong with http call", e)
+                Log.e("error", "Something went wrong with http call" + e.stackTraceToString())
             }
 
             override fun onResponse(call: Call, response: Response) {

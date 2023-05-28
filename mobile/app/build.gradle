@@ -47,6 +47,9 @@ android {
 }
 
 dependencies {
+    implementation("androidx.datastore:datastore-preferences-core:1.0.0")
+    implementation "androidx.datastore:datastore-preferences:1.0.0"
+
     implementation "com.squareup.okhttp3:okhttp:4.10.0"
     implementation 'org.bouncycastle:bcprov-jdk16:1.45'
     implementation 'com.google.code.gson:gson:2.10.1'

@@ -2,17 +2,24 @@ import "@total-typescript/ts-reset";
 import Websocket from "isomorphic-ws";
 import qs from "node:querystring";
 import { Socket, Channel } from "phoenix";
-import { Base64Ciphertext, SmsDecryptor } from "./decryptor";
+import { Base64Ciphertext, SmsDecryptor } from "./decryptor.js";
+import debug from "debug";
 import { z } from "zod";
+import { Extractor, Metadata } from "./extractor.js";
 
-export interface Sms {
-  body: string;
-  sender: string;
-  date: number;
-  messageClass: string;
-}
+const log = debug("sms-router");
+
+export const Sms = z.object({
+  body: z.string(),
+  sender: z.string(),
+  date: z.number(),
+  messageClass: z.string(),
+});
+
+export type Sms = z.infer<typeof Sms>;
 
 export interface SmsRouterOptions {
+  extractor?: Extractor;
   secret: string;
   websocketUrl?: string;
   onError?: (err: Error) => void;
@@ -24,13 +31,13 @@ export class SmsRouter {
   readonly #socket: Socket;
   readonly #channel: Channel;
   readonly #decryptor = new SmsDecryptor(this.opts.secret);
+  readonly #extractor: Extractor | undefined;
   static readonly DEFAULT_WEBSOCKET_URL =
     "wss://sms-router.fly.dev/subscribe/websocket";
   // "ws://localhost:4000/subscribe/websocket";
 
   constructor(private readonly opts: SmsRouterOptions) {
     const params = { routing_key: this.#decryptor.hashedSecret() };
-    console.log(params);
 
     const url = `${
       this.opts.websocketUrl ?? SmsRouter.DEFAULT_WEBSOCKET_URL
@@ -41,11 +48,20 @@ export class SmsRouter {
       transport: Websocket,
     });
     this.#channel = this.#socket.channel(`sms:${params.routing_key}`, {});
+    this.#extractor = opts.extractor;
+  }
+
+  static async withExtractor(opts: SmsRouterOptions): Promise<SmsRouter> {
+    const extractor = await Extractor.fromSmsRegex();
+    return new SmsRouter({
+      ...opts,
+      extractor,
+    });
   }
 
   async list<T = Sms>(): Promise<T[]> {
     const res = await fetch(
-      `https://sms-router.fly.dev/api/v1/sms/${this.#decryptor.hashedSecret()}`
+      `https://sms.xetera.dev/api/v1/sms/${this.#decryptor.hashedSecret()}`
     );
     const data = smsList.parse(await res.json());
     return data
@@ -53,7 +69,7 @@ export class SmsRouter {
         try {
           return JSON.parse(this.#decryptor.decryptCiphertext(data)) as T;
         } catch (err) {
-          console.error(err);
+          log(err);
           return;
         }
       })
@@ -64,7 +80,7 @@ export class SmsRouter {
     return new Promise<Sms>((resolve, reject) => {
       let matchedMessages = 0;
       let timer: NodeJS.Timeout | undefined;
-      const leave = this.listen((sms) => {
+      const leave = this.listen(({ sms }) => {
         if (!pattern.test(sms.body)) {
           matchedMessages++;
           return;
@@ -95,21 +111,23 @@ export class SmsRouter {
     });
   }
 
-  listen<T = Sms>(f: (sms: T) => void) {
+  listen<K extends object = Sms>(
+    f: (sms: { sms: K; metadata?: Metadata }) => void
+  ) {
     this.#socket.connect();
-    console.log("ran listen function");
+    log("ran listen function");
 
     this.#channel
       .join(1000)
       .receive("ok", (res) => {
-        console.log("joined channel", res);
+        log("joined channel", res);
       })
       .receive("error", (err) => {
-        console.log("error", err);
+        log("error", err);
       });
 
     this.#channel.on("new", (data) => {
-      console.log("encrypted sms", data);
+      log("encrypted sms", data);
 
       if (!data.ciphertext) {
         console.warn("Got an empty sms message?");
@@ -119,10 +137,19 @@ export class SmsRouter {
       try {
         const val = Base64Ciphertext.parse(data.ciphertext);
         const sms = this.#decryptor.decryptCiphertext(val);
+        const out = JSON.parse(sms) as K;
 
-        f(JSON.parse(sms) as T);
+        const metadata =
+          this.#extractor && "body" in out
+            ? this.#extractor.extract(
+                sms,
+                ("sender" in out ? out.sender : undefined) as string | undefined
+              )
+            : undefined;
+
+        f({ sms: out, metadata });
       } catch (err) {
-        if (this.opts.onError) {
+        if (this.opts.onError && err instanceof Error) {
           this.opts.onError(err);
         } else {
           throw err;
@@ -130,25 +157,25 @@ export class SmsRouter {
       }
     });
     return () => {
-      console.log("leaving channel...");
+      log("leaving channel");
       this.#channel.leave();
     };
   }
 }
 
-async function main() {
-  const secretKey =
-    "9d04971f8d17c915660179ad186b58db7feaa00ae51e3c35ff00163e0cc1393b";
-  const smsRouter = new SmsRouter({ secret: secretKey });
+// async function main() {
+//   const secretKey =
+//     "9d04971f8d17c915660179ad186b58db7feaa00ae51e3c35ff00163e0cc1393b";
+//   const smsRouter = new SmsRouter({ secret: secretKey });
 
-  // smsRouter.listen((sms) => {
-  //   console.log(sms);
-  // });
-  // const sms = await smsRouter.waitFor(/\ /, { timeout: 60 * 5000 });
+//   // smsRouter.listen((sms) => {
+//   //   console.log(sms);
+//   // });
+//   // const sms = await smsRouter.waitFor(/\ /, { timeout: 60 * 5000 });
 
-  console.log(await smsRouter.list());
+//   log(await smsRouter.list());
 
-  // const code2fa = sms.body.match(/sifreniz: (\d+)/)?.[0];
-}
+//   // const code2fa = sms.body.match(/sifreniz: (\d+)/)?.[0];
+// }
 
-main();
+// main();

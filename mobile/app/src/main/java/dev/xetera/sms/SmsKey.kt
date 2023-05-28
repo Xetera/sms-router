@@ -1,33 +1,46 @@
 package dev.xetera.sms
 
-class SmsKey(private val keyStr: String) {
-    @OptIn(ExperimentalUnsignedTypes::class)
-    val key: UByteArray = hexStringToByteArray(keyStr)
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import java.util.Base64
 
-    @OptIn(ExperimentalUnsignedTypes::class)
+val keyStorageKey = stringPreferencesKey("sms-router-key")
+
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+
+class SmsKey(private val key: ByteArray) {
+
     fun toCharArray(): CharArray {
-        return key.toString().toCharArray()
+        return this.toString().toCharArray()
     }
 
-    @OptIn(ExperimentalUnsignedTypes::class)
     fun toByteArray(): ByteArray {
-        return key.toByteArray()
+        return key
     }
 
-    @OptIn(ExperimentalUnsignedTypes::class)
     override fun toString(): String {
-        return keyStr
+        return key.toString(Charsets.UTF_8)
     }
 
-    @OptIn(ExperimentalUnsignedTypes::class)
-    private fun hexStringToByteArray(item: String): UByteArray {
-        val result = UByteArray(item.length / 2)
-        for (i in item.indices step 2) {
-            val firstDigit = Character.digit(item[i], 16)
-            val secondDigit = Character.digit(item[i + 1], 16)
-            val value = firstDigit shl 4 or secondDigit
-            result[i / 2] = value.toUByte()
+    companion object {
+        suspend fun getFromStoreOrDefault(context: Context, encryptor: Encryptor): SmsKey {
+            val out = context.dataStore.edit { preferences ->
+                val edited =
+                    preferences[keyStorageKey] ?: Base64.getEncoder()
+                        .encodeToString(encryptor.generateKey())
+
+                preferences[keyStorageKey] = edited
+            }[keyStorageKey]
+
+            return SmsKey(Base64.getDecoder().decode(out))
         }
-        return result
+    }
+
+    suspend fun getOrDefault() {
+
     }
 }

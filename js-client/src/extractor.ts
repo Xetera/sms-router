@@ -16,6 +16,7 @@ export type Pattern = z.infer<typeof Pattern>;
 export const App = z.object({
   id: z.string(),
   name: z.string(),
+  description: z.string(),
   icon: z.string(),
   patterns: z.array(Pattern),
 });
@@ -30,8 +31,16 @@ export const Metadata = z.object({
   app: z.object({
     id: z.string(),
     name: z.string(),
+    description: z.string(),
+    icon: z.string(),
   }),
-  type: z.string(),
+  pattern: z.object({
+    id: z.string(),
+    type: z.string(),
+    name: z.string(),
+    description: z.string(),
+    regex: z.any().transform((val) => val as RegExp),
+  }),
   fields: z.record(z.string()),
 });
 
@@ -71,13 +80,21 @@ export class Extractor {
     const matched = message.match(pattern.pattern);
     if (matched) {
       return {
-        type: pattern.type,
         app: {
           id: app.id,
           name: app.name,
+          description: app.description,
+          icon: app.icon,
         },
-        fields: matched.groups,
-      } as Metadata;
+        pattern: {
+          id: pattern.id,
+          type: pattern.type,
+          name: pattern.name,
+          description: pattern.description,
+          regex: pattern.pattern,
+        },
+        fields: matched.groups ?? {},
+      };
     }
   }
 

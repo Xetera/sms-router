@@ -6,6 +6,7 @@ import { Base64Ciphertext, SmsDecryptor } from "./decryptor.js";
 import debug from "debug";
 import { z } from "zod";
 import { Extractor, Metadata } from "./extractor.js";
+import { inspect } from "node:util";
 
 const log = debug("sms-router");
 
@@ -32,8 +33,8 @@ export class SmsRouter {
   readonly #channel: Channel;
   readonly #decryptor = new SmsDecryptor(this.opts.secret);
   readonly #extractor: Extractor | undefined;
-  static readonly DEFAULT_WEBSOCKET_URL =
-    "wss://sms-router.fly.dev/subscribe/websocket";
+  static readonly DEFAULT_HOST = "sms.xetera.dev";
+  static readonly DEFAULT_WEBSOCKET_URL = `wss://${SmsRouter.DEFAULT_HOST}/subscribe/websocket`;
   // "ws://localhost:4000/subscribe/websocket";
 
   constructor(private readonly opts: SmsRouterOptions) {
@@ -63,7 +64,9 @@ export class SmsRouter {
     Array<{ sms: T; metadata?: Metadata }>
   > {
     const res = await fetch(
-      `https://sms.xetera.dev/api/v1/sms/${this.#decryptor.hashedSecret()}`
+      `https://${
+        SmsRouter.DEFAULT_HOST
+      }/api/v1/sms/${this.#decryptor.hashedSecret()}`
     );
     const data = smsList.parse(await res.json());
     return data
@@ -116,10 +119,13 @@ export class SmsRouter {
   }
 
   private extractFromSms<S extends object>(obj: S) {
+    console.log(obj);
     return this.#extractor && "body" in obj && typeof obj.body === "string"
       ? this.#extractor.extract(
           obj.body,
-          ("sender" in obj ? obj.sender : undefined) as string | undefined
+          "sender" in obj && typeof obj.sender === "string"
+            ? obj.sender
+            : undefined
         )
       : undefined;
   }
@@ -173,14 +179,14 @@ export class SmsRouter {
 // async function main() {
 //   const secretKey =
 //     "9d04971f8d17c915660179ad186b58db7feaa00ae51e3c35ff00163e0cc1393b";
-//   const smsRouter = new SmsRouter({ secret: secretKey });
+//   const smsRouter = await SmsRouter.withExtractor({ secret: secretKey });
 
-//   // smsRouter.listen((sms) => {
-//   //   console.log(sms);
-//   // });
+//   smsRouter.listen((sms) => {
+//     console.log(sms);
+//   });
 //   // const sms = await smsRouter.waitFor(/\ /, { timeout: 60 * 5000 });
 
-//   log(await smsRouter.list());
+//   // log(inspect(await smsRouter.list(), { depth: null }));
 
 //   // const code2fa = sms.body.match(/sifreniz: (\d+)/)?.[0];
 // }

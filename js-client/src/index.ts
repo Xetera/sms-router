@@ -59,7 +59,9 @@ export class SmsRouter {
     });
   }
 
-  async list<T = Sms>(): Promise<T[]> {
+  async list<T extends object = Sms>(): Promise<
+    Array<{ sms: T; metadata?: Metadata }>
+  > {
     const res = await fetch(
       `https://sms.xetera.dev/api/v1/sms/${this.#decryptor.hashedSecret()}`
     );
@@ -67,7 +69,9 @@ export class SmsRouter {
     return data
       .map((data) => {
         try {
-          return JSON.parse(this.#decryptor.decryptCiphertext(data)) as T;
+          const sms = JSON.parse(this.#decryptor.decryptCiphertext(data)) as T;
+          const metadata = this.extractFromSms(sms);
+          return { sms, metadata };
         } catch (err) {
           log(err);
           return;
@@ -111,6 +115,15 @@ export class SmsRouter {
     });
   }
 
+  private extractFromSms<S extends object>(obj: S) {
+    return this.#extractor && "body" in obj && typeof obj.body === "string"
+      ? this.#extractor.extract(
+          obj.body,
+          ("sender" in obj ? obj.sender : undefined) as string | undefined
+        )
+      : undefined;
+  }
+
   listen<K extends object = Sms>(
     f: (sms: { sms: K; metadata?: Metadata }) => void
   ) {
@@ -139,13 +152,7 @@ export class SmsRouter {
         const sms = this.#decryptor.decryptCiphertext(val);
         const out = JSON.parse(sms) as K;
 
-        const metadata =
-          this.#extractor && "body" in out
-            ? this.#extractor.extract(
-                sms,
-                ("sender" in out ? out.sender : undefined) as string | undefined
-              )
-            : undefined;
+        const metadata = this.extractFromSms(out);
 
         f({ sms: out, metadata });
       } catch (err) {

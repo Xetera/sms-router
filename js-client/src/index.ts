@@ -5,7 +5,7 @@ import { Socket, Channel } from "phoenix";
 import { Base64Ciphertext, SmsDecryptor } from "./decryptor.js";
 import debug from "debug";
 import { z } from "zod";
-import { Extractor, Metadata } from "./extractor.js";
+import { Extractor, MatchRules, Metadata } from "./extractor.js";
 import { inspect } from "node:util";
 
 const log = debug("sms-router");
@@ -88,25 +88,34 @@ export class SmsRouter {
       .filter(Boolean);
   }
 
+  isDefaultSms(data: object): data is Sms {
+    return Sms.safeParse(data).success;
+  }
+
   waitFor<T extends object = Sms>(
-    pattern: RegExp,
+    rules: MatchRules,
     opts?: { timeout: number }
   ): Promise<SmsPacket<T>> {
     return new Promise<SmsPacket<T>>((resolve, reject) => {
+      if (!this.#extractor) {
+        throw new Error(
+          "Cannot wait for sms without an extractor. Use SmsRouter.withExtractor() to initialize the class"
+        );
+      }
+      const extractor = this.#extractor;
       let matchedMessages = 0;
       let timer: NodeJS.Timeout | undefined;
       const leave = this.listen<T>(({ sms }) => {
+        const metadata = this.extractFromSms(sms);
         if (
-          "body" in sms &&
-          typeof sms.body === "string" &&
-          !pattern.test(sms.body)
+          this.isDefaultSms(sms) &&
+          extractor.testSms({ sms, metadata }, rules)
         ) {
           matchedMessages++;
           return;
         }
         clearTimeout(timer);
         leave();
-        const metadata = this.extractFromSms(sms);
         resolve({ sms, metadata });
       });
 
@@ -117,13 +126,17 @@ export class SmsRouter {
           if (matchedMessages > 0) {
             reject(
               new Error(
-                `Could not find a message matching ${pattern} in ${timeout}ms. But found ${matchedMessages} total non-matching messages`
+                `Could not find a message matching ${JSON.stringify(
+                  rules
+                )} in ${timeout}ms. But found ${matchedMessages} total non-matching messages`
               )
             );
           }
           reject(
             new Error(
-              `Did not receive any messages matching ${pattern} in ${timeout}ms`
+              `Did not receive any messages matching ${JSON.stringify(
+                rules
+              )} in ${timeout}ms`
             )
           );
         }, timeout);

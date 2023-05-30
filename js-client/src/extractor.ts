@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Sms, SmsPacket } from ".";
 
 export const PatternRegex = z.string().transform((val) => new RegExp(val));
 
@@ -98,6 +99,17 @@ export class Extractor {
     }
   }
 
+  testSms({ sms, metadata }: SmsPacket<Sms>, tester: MatchRules): boolean {
+    if ("content" in tester) {
+      return tester.content.test(sms.body);
+    } else if ("sender" in tester) {
+      return tester.sender.test(sms.sender);
+    } else if ("metadata" in tester && typeof metadata !== "undefined") {
+      return metadata.app.id === tester.metadata.app;
+    }
+    return false;
+  }
+
   extract(message: string, sender?: string): Metadata | undefined {
     const metadata = findMap(this.apps, (app) => {
       return findMap(app.patterns, (pattern) => {
@@ -112,3 +124,16 @@ export class Extractor {
     return metadata ? Metadata.parse(metadata) : undefined;
   }
 }
+
+export type MatchRules =
+  | {
+      content: RegExp;
+    }
+  | {
+      sender: RegExp;
+    }
+  | {
+      metadata: {
+        app: string;
+      };
+    };

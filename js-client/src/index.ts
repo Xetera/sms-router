@@ -19,6 +19,11 @@ export const Sms = z.object({
 
 export type Sms = z.infer<typeof Sms>;
 
+export type SmsPacket<T extends object = Sms> = {
+  sms: T;
+  metadata?: Metadata;
+};
+
 export interface SmsRouterOptions {
   extractor?: Extractor;
   secret: string;
@@ -83,18 +88,26 @@ export class SmsRouter {
       .filter(Boolean);
   }
 
-  waitFor(pattern: RegExp, opts?: { timeout: number }): Promise<Sms> {
-    return new Promise<Sms>((resolve, reject) => {
+  waitFor<T extends object = Sms>(
+    pattern: RegExp,
+    opts?: { timeout: number }
+  ): Promise<SmsPacket<T>> {
+    return new Promise<SmsPacket<T>>((resolve, reject) => {
       let matchedMessages = 0;
       let timer: NodeJS.Timeout | undefined;
-      const leave = this.listen(({ sms }) => {
-        if (!pattern.test(sms.body)) {
+      const leave = this.listen<T>(({ sms }) => {
+        if (
+          "body" in sms &&
+          typeof sms.body === "string" &&
+          !pattern.test(sms.body)
+        ) {
           matchedMessages++;
           return;
         }
         clearTimeout(timer);
         leave();
-        resolve(sms);
+        const metadata = this.extractFromSms(sms);
+        resolve({ sms, metadata });
       });
 
       if (opts?.timeout) {
@@ -130,9 +143,7 @@ export class SmsRouter {
       : undefined;
   }
 
-  listen<K extends object = Sms>(
-    f: (sms: { sms: K; metadata?: Metadata }) => void
-  ) {
+  listen<K extends object = Sms>(f: (sms: SmsPacket<K>) => void) {
     this.#socket.connect();
     log("ran listen function");
 
